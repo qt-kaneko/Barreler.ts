@@ -38,7 +38,7 @@ export async function provideCompletionItems(document: VSCODE.TextDocument, posi
     let hasExports = source.statements.some(statement =>
       TS.isExportDeclaration(statement) ||
       TS.isExportAssignment(statement) ||
-      TS.isDeclarationStatement(statement) && TS.getCombinedModifierFlags(statement) & TS.ModifierFlags.Export
+      TS.getCombinedModifierFlags(statement as TS.DeclarationStatement) & TS.ModifierFlags.Export
     );
 
     if (hasExports)
