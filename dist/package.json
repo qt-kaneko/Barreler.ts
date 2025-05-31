@@ -1,0 +1,15 @@
+{
+  "name": "barreler-ts",
+  "version": "1.0.0",
+  "publisher": "qt-kaneko",
+  "engines": {
+		"vscode": "^1.74.0"
+	},
+
+  "author": "Kaneko Qt",
+  "description": "Automatic TypeScript barrel file generator and updater.",
+  "displayName": "Barreler.ts",
+  "repository": {"type": "git", "url": "https://github.com/qt-kaneko/Barreler.ts"},
+  "main": "activate.js",
+  "activationEvents": ["onStartupFinished"]
+}

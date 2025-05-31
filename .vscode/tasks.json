@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "process",
+      "command": "./esbuild.config.mjs"
+    },
+    {
+      "label": "Verify",
+      "type": "typescript",
+      "tsconfig": "./tsconfig.json",
+    },
+    {
+      "label": "Build & Verify",
+      "dependsOn": ["Build", "Verify"],
+      "group": {"kind": "build", "isDefault": true}
+    }
+  ]
+}
