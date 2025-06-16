@@ -1,88 +1,62 @@
-import PATH from "path";
-import TS from "typescript";
-import VSCODE from "vscode";
+import $vscode from "vscode";
+import $path from "path";
+import $ts from "typescript";
 
-import * as FACTORY from "./factory";
-import { openTextDocument } from "./openTextDocument";
+import * as factory from "./factory";
 
-const _printer = TS.createPrinter();
-const _rangeAll = new VSCODE.Range(0, 0, Number.MAX_SAFE_INTEGER, 0);
-const _comment = `// @auto-generated\n`;
-
-export async function update(path: string, exists: boolean)
+export async function update(name: string, path: string, type: $vscode.FileType | undefined, barrelSource: $ts.SourceFile)
 {
-  let dir = PATH.dirname(path);
-  let name = PATH.basename(path);
-
-  if (name === `index.ts`) // If index.ts, treat as directory
-  {
-    return await update(dir, exists);
-  }
-
-  let barrelPath = PATH.join(dir, `index.ts`);
-
-  let barrelDocument = await openTextDocument(barrelPath);
-  if (barrelDocument === undefined) return;
-
-  let barrelText = barrelDocument.getText();
-  if (!barrelText.startsWith(_comment)) return;
-
-  barrelText = barrelText.slice(_comment.length);
-
-  let barrelSource = TS.createSourceFile(barrelPath, barrelText, TS.ScriptTarget.ESNext);
+  let barrelStatements = [...barrelSource.statements];
 
   let exportName = name.replace(/\.tsx?$/, ``);
   let exportPath = `./${exportName}`;
 
-  // Remove export declaration
-  let barrelStatements = barrelSource.statements
-    .filter(TS.isExportDeclaration)
-    .filter(statement => (statement.moduleSpecifier as TS.StringLiteral)?.text !== exportPath);
+  let isDir = false;
+  let hasExports = false;
 
-  if (exists)
+  if (type !== undefined) // Exists
   {
-    let stat = await VSCODE.workspace.fs.stat(VSCODE.Uri.file(path));
-    let isDir = stat.type & VSCODE.FileType.Directory;
+    isDir = Boolean(type & $vscode.FileType.Directory);
 
     if (isDir)
     {
-      path = PATH.join(path, `index.ts`);
+      path = $path.join(path, `index.ts`);
     }
 
-    let document = await openTextDocument(path);
-    if (document === undefined) return;
-
+    let document = await $vscode.workspace.openTextDocument(path);
     let text = document.getText();
-    let source = TS.createSourceFile(path, text, TS.ScriptTarget.ESNext);
+    let source = $ts.createSourceFile(``, text, $ts.ScriptTarget.Latest);
 
-    let hasExports = source.statements.some(statement =>
-      TS.isExportDeclaration(statement) ||
-      TS.isExportAssignment(statement) ||
-      TS.getCombinedModifierFlags(statement as TS.DeclarationStatement) & TS.ModifierFlags.Export
+    hasExports = source.statements.some(statement =>
+      $ts.isExportDeclaration(statement) ||
+      $ts.isExportAssignment(statement) ||
+      $ts.getCombinedModifierFlags(statement as $ts.DeclarationStatement) & $ts.ModifierFlags.Export
     );
-
-    if (hasExports)
-    {
-      let exportClause = isDir ? TS.factory.createNamespaceExport(TS.factory.createStringLiteral(exportName)) : undefined;
-      let exportDeclaration = FACTORY.createExportDeclaration({
-        isTypeOnly: false,
-        exportClause: exportClause,
-        moduleSpecifier: TS.factory.createStringLiteral(exportPath)
-      });
-
-      // Add export declaration
-      if (isDir) barrelStatements.push(exportDeclaration);
-      else barrelStatements.unshift(exportDeclaration);
-    }
   }
 
-  barrelSource = TS.factory.updateSourceFile(barrelSource, barrelStatements);
-  barrelText = _printer.printFile(barrelSource);
+  let barrelExportI = barrelStatements.findIndex(statement =>
+    $ts.isExportDeclaration(statement) &&
+    (statement.moduleSpecifier as $ts.StringLiteral).text === exportPath
+  );
 
-  barrelText = _comment + barrelText;
+  if (hasExports && barrelExportI === -1)
+  {
+    let exportClause = isDir ? $ts.factory.createNamespaceExport($ts.factory.createStringLiteral(exportName)) : undefined;
+    let exportDeclaration = factory.createExportDeclaration({
+      isTypeOnly: false,
+      exportClause: exportClause,
+      moduleSpecifier: $ts.factory.createStringLiteral(exportPath)
+    });
 
-  let edit = new VSCODE.WorkspaceEdit();
-  edit.replace(VSCODE.Uri.file(barrelPath), _rangeAll, barrelText);
+    barrelStatements.push(exportDeclaration);
+  }
+  else if (!hasExports && barrelExportI !== -1)
+  {
+    barrelStatements.splice(barrelExportI, 1);
+  }
+  else return {barrelSource, changed: false};
 
-  await VSCODE.workspace.applyEdit(edit);
+  barrelSource = $ts.factory.updateSourceFile(barrelSource, barrelStatements);
+
+  return {barrelSource, changed: true};
 }

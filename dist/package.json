@@ -1,10 +1,11 @@
 {
   "name": "barreler-ts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "qt-kaneko",
   "engines": {
 		"vscode": "^1.74.0"
 	},
+  "files": ["activate.js", "LICENSE.txt"],
 
   "author": "Kaneko Qt",
   "description": "Automatic TypeScript barrel file generator and updater.",

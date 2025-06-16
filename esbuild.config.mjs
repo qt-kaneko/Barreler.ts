@@ -11,6 +11,6 @@ await esbuild.build({
   ],
   platform: "node",
   format: "cjs",
-  minify: true,
-  sourcemap: "linked",
+  minifyWhitespace: true,
+  // sourcemap: "linked",
 });
