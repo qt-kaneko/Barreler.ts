@@ -1,45 +1,63 @@
-import VSCODE from "vscode";
+import $vscode from "vscode";
 
-import { update } from "./update";
+import { handle } from "./handle";
 import { provideCompletionItems } from "./provideCompletionItems";
+import { Mutex } from "./Mutex";
 
-export function activate({subscriptions}: VSCODE.ExtensionContext)
+const _onDidCreateFilesMutex = new Mutex();
+const _onDidRenameFilesMutex = new Mutex();
+
+export function activate({subscriptions}: $vscode.ExtensionContext)
 {
   subscriptions.push(
-    VSCODE.workspace.onDidCreateFiles(onDidCreateFiles),
-    VSCODE.workspace.onDidDeleteFiles(onDidDeleteFiles),
-    VSCODE.workspace.onDidRenameFiles(onDidRenameFiles),
-    VSCODE.workspace.onDidSaveTextDocument(onDidSaveTextDocument),
-    VSCODE.languages.registerCompletionItemProvider(
-      `typescript`,
-      {provideCompletionItems}
-    )
+    $vscode.workspace.onDidCreateFiles(onDidCreateFiles),
+    $vscode.workspace.onWillDeleteFiles(onWillDeleteFiles),
+    $vscode.workspace.onWillRenameFiles(onWillRenameFiles),
+    $vscode.workspace.onDidRenameFiles(onDidRenameFiles),
+    $vscode.workspace.onWillSaveTextDocument(onWillSaveTextDocument),
+    $vscode.languages.registerCompletionItemProvider(`typescript`, {provideCompletionItems})
   );
 }
 
-async function onDidCreateFiles(e: VSCODE.FileCreateEvent)
+function onDidCreateFiles(e: $vscode.FileCreateEvent)
 {
-  for (let uri of e.files)
-  {
-    await update(uri.fsPath, true);
-  }
+  _onDidCreateFilesMutex.lock(async () => {
+    for (let uri of e.files)
+    {
+      await handle(uri.fsPath, true);
+    }
+  });
 }
-async function onDidDeleteFiles(e: VSCODE.FileDeleteEvent)
+function onWillDeleteFiles(e: $vscode.FileWillDeleteEvent)
 {
-  for (let uri of e.files)
-  {
-    await update(uri.fsPath, false);
-  }
+  e.waitUntil((async () => {
+    for (let uri of e.files)
+    {
+      await handle(uri.fsPath, true);
+    }
+  })());
 }
-async function onDidRenameFiles(e: VSCODE.FileRenameEvent)
+function onWillRenameFiles(e: $vscode.FileWillRenameEvent)
 {
-  for (let {oldUri, newUri} of e.files)
-  {
-    await update(oldUri.fsPath, false);
-    await update(newUri.fsPath, true);
-  }
+  e.waitUntil((async () => {
+    for (let {oldUri, newUri} of e.files)
+    {
+      await handle(oldUri.fsPath, false);
+    }
+  })());
 }
-async function onDidSaveTextDocument(e: VSCODE.TextDocument)
+async function onDidRenameFiles(e: $vscode.FileRenameEvent)
 {
-  await update(e.uri.fsPath, true);
+  _onDidRenameFilesMutex.lock(async () => {
+    for (let {oldUri, newUri} of e.files)
+    {
+      await handle(newUri.fsPath, true);
+    }
+  });
+}
+async function onWillSaveTextDocument(e: $vscode.TextDocumentWillSaveEvent)
+{
+  e.waitUntil((async () => {
+    await handle(e.document.uri.fsPath, true);
+  })());
 }

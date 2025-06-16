@@ -1,4 +1,4 @@
-import TS from "typescript";
+import $ts from "typescript";
 
 export function createExportDeclaration({
   modifiers,
@@ -7,14 +7,14 @@ export function createExportDeclaration({
   moduleSpecifier,
   attributes
 }: {
-  modifiers?: readonly TS.ModifierLike[],
+  modifiers?: readonly $ts.ModifierLike[],
   isTypeOnly: boolean,
-  exportClause?: TS.NamedExportBindings,
-  moduleSpecifier?: TS.Expression,
-  attributes?: TS.ImportAttributes
+  exportClause?: $ts.NamedExportBindings,
+  moduleSpecifier?: $ts.Expression,
+  attributes?: $ts.ImportAttributes
 })
 {
-  return TS.factory.createExportDeclaration(
+  return $ts.factory.createExportDeclaration(
     modifiers,
     isTypeOnly,
     exportClause,
